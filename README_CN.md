@@ -43,6 +43,7 @@ MacVimSwitch 是一个 macOS 输入法切换工具，专为 Vim 用户和经常�
      - 查看使用说明
      - 选择偏好的中文输入法
      - 开启/关闭 Shift 键切换功能
+     - 选择 Esc 生效的应用（可多选，默认在 Terminal、VSCode、MacVim、windsurf、obsidian、warp 中生效）
      - 开启/关闭开机自动启动
      - 退出应用程序
 
@@ -97,8 +98,13 @@ git push origin main
 
 本地构建和测试：
 ```bash
-swiftc macvimswitch.swift -o macvimswitch
-./macvimswitch
+./build.sh
+# 打开第一次，辅助功能先把之前的 MacVimSwitch 删除，看起来好像必须得这么做
+open dist/MacVimSwitch.app
+# 打开第二次，启动辅助功能
+open dist/MacVimSwitch.app
+# 打开第三次，相当于重启应用，这个时候你才能正确获取授权
+open dist/MacVimSwitch.app
 ```
 
 构建发布版本：
@@ -125,7 +131,7 @@ tccutil reset All com.jackiexiao.macvimswitch # Reset permissions
 MacVimSwitch 相比其他输入法切换方案有以下优势：
 
 1. 通用兼容性
-   - 可在所有应用程序中使用（VSCode、终端、Obsidian、Cursor 等）
+   - 可在所有应用程序中使用（VSCode、终端、Obsidian、Cursor、Warp、Windsurf 等）
    - 无需针对不同应用进行配置
    - 不需要为不同编辑器安装插件
 

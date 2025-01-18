@@ -177,6 +177,7 @@ extension TISInputSource {
 // 添加代理协议
 protocol KeyboardManagerDelegate: AnyObject {
     func keyboardManagerDidUpdateState()
+    func shouldSwitchInputSource() -> Bool
 }
 
 class KeyboardManager {
@@ -284,7 +285,11 @@ class KeyboardManager {
 
             if event.getIntegerValueField(.keyboardEventKeycode) == 0x35 { // ESC key
                 print("ESC key pressed")
-                manager.switchToABC()
+                // 检查是否应该切换输入法
+                if let delegate = manager.delegate,
+                   delegate.shouldSwitchInputSource() {
+                    manager.switchToABC()
+                }
             }
 
         case .keyUp:
@@ -292,28 +297,37 @@ class KeyboardManager {
 
         case .flagsChanged:
             let flags = event.flags
-            // print("Flag changed event: \(flags.rawValue)")
             manager.handleModifierFlags(flags)
 
         default:
             break
         }
 
+        // 总是让事件继续传播
         return Unmanaged.passRetained(event)
     }
 
     func switchInputMethod() {
         let currentSource = InputSourceManager.getCurrentSource()
+        print("当前输入法: \(currentSource.id)")
+        print("上一个输入法: \(lastInputSource ?? "nil")")
 
         if let lastSource = lastInputSource,
            let targetSource = InputSourceManager.getInputSource(name: lastSource) {
             if currentSource.id == abcInputSource {
+                // 从ABC切换到上一个输入法
                 targetSource.select()
-            } else if let abcSource = InputSourceManager.getInputSource(name: abcInputSource) {
+                print("切换到上一个输入法: \(lastSource)")
+            } else {
+                // 从其他输入法切换到ABC
                 lastInputSource = currentSource.id
-                abcSource.select()
+                print("保存当前输入法: \(currentSource.id)")
+                if let abcSource = InputSourceManager.getInputSource(name: abcInputSource) {
+                    abcSource.select()
+                }
             }
         } else {
+            // 如果没有lastInputSource，则更新它
             updateLastInputSource(currentSource)
         }
 
@@ -323,8 +337,23 @@ class KeyboardManager {
     private func updateLastInputSource(_ currentSource: InputSource) {
         if currentSource.id != abcInputSource {
             lastInputSource = currentSource.id
+            print("初始化上一个输入法: \(currentSource.id)")
         }
         InputSourceManager.initialize()
+    }
+
+    // 添加新方法：专门用于ESC键的切换
+    func switchToABC() {
+        if let abcSource = InputSourceManager.getInputSource(name: abcInputSource) {
+            let currentSource = InputSourceManager.getCurrentSource()
+            if currentSource.id != abcInputSource {
+                // 保存当前输入法作为lastInputSource
+                lastInputSource = currentSource.id
+                print("保存上一个输入法: \(currentSource.id)")
+                InputSource(tisInputSource: abcSource.tisInputSource).select()
+                delegate?.keyboardManagerDidUpdateState()
+            }
+        }
     }
 
     // 优化事件处理逻辑
@@ -384,17 +413,6 @@ class KeyboardManager {
     func handleKeyDown(_ down: Bool) {
         if down && isShiftPressed {
             hasOtherKeysDuringShift = true
-        }
-    }
-
-    // 添加新方法：专门用于ESC键的切换
-    func switchToABC() {
-        if let abcSource = InputSourceManager.getInputSource(name: abcInputSource) {
-            let currentSource = InputSourceManager.getCurrentSource()
-            if currentSource.id != abcInputSource {
-                lastInputSource = currentSource.id
-                InputSource(tisInputSource: abcSource.tisInputSource).select()
-            }
         }
     }
 
