@@ -114,7 +114,7 @@ class StatusBarManager {
             keyEquivalent: ""
         )
         launchAtLoginItem.target = self
-        launchAtLoginItem.state = LaunchManager.shared.isLaunchAtLoginEnabled() ? .on : .off
+        launchAtLoginItem.state = UserPreferences.shared.launchAtLogin ? .on : .off
         newMenu.addItem(launchAtLoginItem)
 
         newMenu.addItem(NSMenuItem.separator())
@@ -149,9 +149,18 @@ class StatusBarManager {
     }
 
     @objc private func toggleLaunchAtLogin() {
-        LaunchManager.shared.toggleLaunchAtLogin()
-        UserPreferences.shared.launchAtLogin = LaunchManager.shared.isLaunchAtLoginEnabled()
-        createAndShowMenu()
+        if LaunchManager.shared.toggleLaunchAtLogin() {
+            // 操作成功，重新创建菜单以更新状态
+            createAndShowMenu()
+        } else {
+            // 操作失败，显示错误提示
+            let alert = NSAlert()
+            alert.messageText = "设置失败"
+            alert.informativeText = "无法修改开机启动设置，请检查系统权限。"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "确定")
+            alert.runModal()
+        }
     }
 
     @objc private func quitApp() {
