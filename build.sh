@@ -13,7 +13,14 @@ rm -rf dist
 
 # 创建目录结构
 mkdir -p dist/MacVimSwitch.app/Contents/{MacOS,Resources}
-# 复制 Info.plist
+# 复制 Info.plist 和图标
+# 先检查 AppIcon.icns 是否存在
+if [ -f "AppIcon.icns" ]; then
+    cp AppIcon.icns dist/MacVimSwitch.app/Contents/Resources/
+    echo "已复制应用图标到资源文件夹"
+else
+    echo "警告：未找到 AppIcon.icns 文件，将使用默认图标"
+fi
 cp Info.plist dist/MacVimSwitch.app/Contents/
 
 # 构建 ARM64 版本
@@ -91,7 +98,9 @@ cat > dist/MacVimSwitch.app/Contents/Info.plist << EOL
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>0.6.5</string>
+    <key>CFBundleVersion</key>
+    <string>0.6.5</string>
     <key>LSMinimumSystemVersion</key>
     <string>11.0</string>
     <key>LSUIElement</key>

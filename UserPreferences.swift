@@ -8,6 +8,7 @@ class UserPreferences {
     private struct Keys {
         static let allowedApps = "allowedApps"
         static let selectedInputMethod = "selectedInputMethod"
+        static let selectedEnglishInputMethod = "selectedEnglishInputMethod"
         static let useShiftSwitch = "useShiftSwitch"
         static let launchAtLogin = "launchAtLogin"
     }
@@ -30,6 +31,16 @@ class UserPreferences {
         }
         set {
             defaults.set(newValue, forKey: Keys.selectedInputMethod)
+        }
+    }
+    
+    // 选择的英文输入法
+    var selectedEnglishInputMethod: String {
+        get {
+            defaults.string(forKey: Keys.selectedEnglishInputMethod) ?? "com.apple.keylayout.ABC"
+        }
+        set {
+            defaults.set(newValue, forKey: Keys.selectedEnglishInputMethod)
         }
     }
     
@@ -69,6 +80,10 @@ class UserPreferences {
         
         if defaults.object(forKey: Keys.useShiftSwitch) == nil {
             useShiftSwitch = true
+        }
+        
+        if defaults.object(forKey: Keys.selectedEnglishInputMethod) == nil {
+            selectedEnglishInputMethod = "com.apple.keylayout.ABC"
         }
     }
 }

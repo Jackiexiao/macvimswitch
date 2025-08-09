@@ -44,23 +44,23 @@ class StatusBarManager {
         let inputMethodItem = NSMenuItem(title: "选择中文输入法", action: nil, keyEquivalent: "")
         inputMethodItem.submenu = inputMethodMenu
 
-        // 获取所有输入法并添加到子菜单
-        if let inputMethods = InputMethodManager.shared.getAvailableInputMethods() {
-            print("当前保存的输入法: \(KeyboardManager.shared.lastInputSource ?? "nil")")
-            print("UserPreferences中的输入法: \(UserPreferences.shared.selectedInputMethod ?? "nil")")
+        // 获取所有CJKV输入法并添加到子菜单
+        if let inputMethods = InputMethodManager.shared.getAvailableCJKVInputMethods() {
+            print("当前保存的中文输入法: \(KeyboardManager.shared.lastInputSource ?? "nil")")
+            print("UserPreferences中的中文输入法: \(UserPreferences.shared.selectedInputMethod ?? "nil")")
             
             for (sourceId, name) in inputMethods {
-                print("添加输入法菜单项: \(name) (\(sourceId))")
+                print("添加CJKV输入法菜单项: \(name) (\(sourceId))")
                 let item = NSMenuItem(
                     title: name,
-                    action: #selector(selectInputMethod(_:)),
+                    action: #selector(selectCJKVInputMethod(_:)),
                     keyEquivalent: ""
                 )
                 item.target = self
                 item.representedObject = sourceId
                 // 检查是否是当前选中的输入法
                 if sourceId == KeyboardManager.shared.lastInputSource {
-                    print("设置选中状态: \(name) (\(sourceId))")
+                    print("设置中文输入法选中状态: \(name) (\(sourceId))")
                     item.state = .on
                 }
                 inputMethodMenu.addItem(item)
@@ -68,6 +68,35 @@ class StatusBarManager {
         }
 
         newMenu.addItem(inputMethodItem)
+        
+        // 添加英文输入法选择子菜单
+        let englishInputMethodMenu = NSMenu()
+        let englishInputMethodItem = NSMenuItem(title: "选择英文输入法", action: nil, keyEquivalent: "")
+        englishInputMethodItem.submenu = englishInputMethodMenu
+
+        // 获取所有英文输入法并添加到子菜单
+        if let englishInputMethods = InputMethodManager.shared.getAvailableEnglishInputMethods() {
+            print("当前保存的英文输入法: \(KeyboardManager.shared.englishInputSource)")
+            
+            for (sourceId, name) in englishInputMethods {
+                print("添加英文输入法菜单项: \(name) (\(sourceId))")
+                let item = NSMenuItem(
+                    title: name,
+                    action: #selector(selectEnglishInputMethod(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = sourceId
+                // 检查是否是当前选中的输入法
+                if sourceId == KeyboardManager.shared.englishInputSource {
+                    print("设置英文输入法选中状态: \(name) (\(sourceId))")
+                    item.state = .on
+                }
+                englishInputMethodMenu.addItem(item)
+            }
+        }
+
+        newMenu.addItem(englishInputMethodItem)
         newMenu.addItem(NSMenuItem.separator())
 
         // 添加应用列表子菜单
@@ -141,10 +170,17 @@ class StatusBarManager {
         createAndShowMenu()
     }
 
-    @objc private func selectInputMethod(_ sender: NSMenuItem) {
+    @objc private func selectCJKVInputMethod(_ sender: NSMenuItem) {
         guard let sourceId = sender.representedObject as? String else { return }
-        print("[StatusBarManager] 选择输入法: \(sourceId)")
+        print("[StatusBarManager] 选择CJKV输入法: \(sourceId)")
         KeyboardManager.shared.setLastInputSource(sourceId)
+        createAndShowMenu()  // 重新创建菜单以更新选中状态
+    }
+    
+    @objc private func selectEnglishInputMethod(_ sender: NSMenuItem) {
+        guard let sourceId = sender.representedObject as? String else { return }
+        print("[StatusBarManager] 选择英文输入法: \(sourceId)")
+        KeyboardManager.shared.englishInputSource = sourceId
         createAndShowMenu()  // 重新创建菜单以更新选中状态
     }
 

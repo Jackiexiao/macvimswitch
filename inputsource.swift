@@ -184,7 +184,10 @@ class KeyboardManager {
     static let shared = KeyboardManager()
     weak var delegate: KeyboardManagerDelegate?  // 添加代理属性
     private var eventTap: CFMachPort?
-    let abcInputSource = "com.apple.keylayout.ABC"
+    var englishInputSource: String {
+        get { UserPreferences.shared.selectedEnglishInputMethod }
+        set { UserPreferences.shared.selectedEnglishInputMethod = newValue }
+    }
     var useShiftSwitch: Bool {
         get { UserPreferences.shared.useShiftSwitch }
         set {
@@ -231,13 +234,13 @@ class KeyboardManager {
         initializeInputSources()
         setupEventTap()
 
-        // 检查当前输入法，如果是 ABC 且有保存的上一个输入法，则更新 lastInputSource
+        // 检查当前输入法，如果是英文且有保存的上一个输入法，则更新 lastInputSource
         let currentSource = InputSourceManager.getCurrentSource()
-        if currentSource.id == abcInputSource,
+        if currentSource.id == englishInputSource,
            let savedSource = UserPreferences.shared.selectedInputMethod {
             lastInputSource = savedSource
-        } else if currentSource.id != abcInputSource {
-            // 如果当前不是 ABC，就保存当前输入法
+        } else if currentSource.id != englishInputSource {
+            // 如果当前不是英文，就保存当前输入法
             lastInputSource = currentSource.id
             UserPreferences.shared.selectedInputMethod = currentSource.id
         }
@@ -271,7 +274,7 @@ class KeyboardManager {
                 continue
             }
 
-            if sourceId != abcInputSource {
+            if sourceId != englishInputSource {
                 lastInputSource = sourceId
                 print("Found Chinese input source: \(sourceId)")
                 break
@@ -318,7 +321,7 @@ class KeyboardManager {
                 // 检查是否应该切换输入法
                 if let delegate = manager.delegate,
                    delegate.shouldSwitchInputSource() {
-                    manager.switchToABC()
+                    manager.switchToEnglish()
                 }
             }
 
@@ -340,18 +343,18 @@ class KeyboardManager {
     func switchInputMethod() {
         let currentSource = InputSourceManager.getCurrentSource()
 
-        if currentSource.id == abcInputSource {
-            // 从 ABC 切换到保存的输入法
+        if currentSource.id == englishInputSource {
+            // 从英文切换到保存的输入法
             if let lastSource = lastInputSource,
                let targetSource = InputSourceManager.getInputSource(name: lastSource) {
                 targetSource.select()
             }
         } else {
-            // 从其他输入法切换到 ABC
+            // 从其他输入法切换到英文
             lastInputSource = currentSource.id
             UserPreferences.shared.selectedInputMethod = currentSource.id
-            if let abcSource = InputSourceManager.getInputSource(name: abcInputSource) {
-                abcSource.select()
+            if let englishSource = InputSourceManager.getInputSource(name: englishInputSource) {
+                englishSource.select()
             }
         }
 
@@ -359,7 +362,7 @@ class KeyboardManager {
     }
 
     private func updateLastInputSource(_ currentSource: InputSource) {
-        if currentSource.id != abcInputSource {
+        if currentSource.id != englishInputSource {
             lastInputSource = currentSource.id
             print("初始化上一个输入法: \(currentSource.id)")
         }
@@ -367,14 +370,14 @@ class KeyboardManager {
     }
 
     // 添加新方法：专门用于ESC键的切换
-    func switchToABC() {
-        if let abcSource = InputSourceManager.getInputSource(name: abcInputSource) {
+    func switchToEnglish() {
+        if let englishSource = InputSourceManager.getInputSource(name: englishInputSource) {
             let currentSource = InputSourceManager.getCurrentSource()
-            if currentSource.id != abcInputSource {
+            if currentSource.id != englishInputSource {
                 // 保存当前输入法作为lastInputSource
                 lastInputSource = currentSource.id
                 print("保存上一个输入法: \(currentSource.id)")
-                InputSource(tisInputSource: abcSource.tisInputSource).select()
+                InputSource(tisInputSource: englishSource.tisInputSource).select()
                 delegate?.keyboardManagerDidUpdateState()
             }
         }
@@ -488,9 +491,9 @@ class KeyboardManager {
         TISSelectInputSource(source.tisInputSource)
         usleep(InputSourceManager.uSeconds)
 
-        // 第二步：切换到 ABC
-        if let abcSource = InputSourceManager.getInputSource(name: abcInputSource) {
-            TISSelectInputSource(abcSource.tisInputSource)
+        // 第二步：切换到英文
+        if let englishSource = InputSourceManager.getInputSource(name: englishInputSource) {
+            TISSelectInputSource(englishSource.tisInputSource)
             usleep(InputSourceManager.uSeconds)
 
             // 第三步：再切回目标输入法
