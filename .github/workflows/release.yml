@@ -10,7 +10,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
@@ -80,7 +80,8 @@ jobs:
         rm dist/MacVimSwitch.app/Contents/MacOS/macvimswitch-arm64
         rm dist/MacVimSwitch.app/Contents/MacOS/macvimswitch-x86_64
 
-        # 创建 Info.plist
+    - name: Create Info.plist
+      run: |
         cat > dist/MacVimSwitch.app/Contents/Info.plist << 'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -120,7 +121,8 @@ jobs:
         </plist>
         EOF
 
-        # 创建 entitlements.plist
+    - name: Create Entitlements
+      run: |
         cat > entitlements.plist << 'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -142,61 +144,39 @@ jobs:
         </plist>
         EOF
 
+    - name: Sign Application
+      run: |
         # 设置执行权限
         chmod +x dist/MacVimSwitch.app/Contents/MacOS/macvimswitch
-
         # 使用自签名
         codesign --force --deep --sign - --entitlements entitlements.plist dist/MacVimSwitch.app
 
-    - name: Create DMG with Installation Guide
+    - name: Create DMG
       run: |
         # 创建临时挂载点
         mkdir -p /tmp/dmg
-
         # 创建应用程序文件夹符号链接
         ln -s /Applications /tmp/dmg/Applications
-
         # 复制应用
         cp -r dist/MacVimSwitch.app /tmp/dmg/
-
         # 创建 DMG
         hdiutil create -volname "MacVimSwitch" -srcfolder /tmp/dmg -ov -format UDZO MacVimSwitch.dmg
-
         # 清理
         rm -rf /tmp/dmg
-
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
-
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./MacVimSwitch.dmg
-        asset_name: MacVimSwitch.dmg
-        asset_content_type: application/x-apple-diskimage
-
-    - name: Get Tag Message
-      id: tag
-      run: |
-        # 获取当前 tag 的注释内容
-        echo "message=$(git tag -l --format='%(contents)' ${{ github.ref_name }})" >> $GITHUB_OUTPUT
 
     - name: Calculate SHA256
       run: |
         echo "DMG_SHA256=$(shasum -a 256 MacVimSwitch.dmg | cut -d ' ' -f 1)" >> $GITHUB_ENV
 
-    - name: Add SHA256 to Release
+    - name: Get Tag Message
+      id: tag
+      run: |
+        tag_message=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
+        echo "message<<EOF" >> $GITHUB_OUTPUT
+        echo "$tag_message" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: MacVimSwitch.dmg
