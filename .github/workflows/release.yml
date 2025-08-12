@@ -148,8 +148,20 @@ jobs:
       run: |
         # 设置执行权限
         chmod +x dist/MacVimSwitch.app/Contents/MacOS/macvimswitch
-        # 使用自签名
-        codesign --force --deep --sign - --entitlements entitlements.plist dist/MacVimSwitch.app
+        
+        # 使用更安全的签名方式
+        # 移除属性标签（避免 quarantine 问题）
+        xattr -cr dist/MacVimSwitch.app
+        
+        # 使用 adhoc 签名（比完全自签名更安全）
+        codesign --force --deep --sign - --entitlements entitlements.plist \
+          --options runtime --timestamp dist/MacVimSwitch.app
+        
+        # 验证签名
+        codesign --verify --verbose dist/MacVimSwitch.app
+        
+        # 显示签名信息
+        codesign -dv dist/MacVimSwitch.app
 
     - name: Create DMG
       run: |
@@ -185,13 +197,25 @@ jobs:
 
           Universal Binary (支持 Intel 和 Apple Silicon Mac)
 
-          安装方法：
+          ## 安装方法（重要）：
+          
+          **由于 macOS 安全策略，初次安装可能需要以下步骤：**
+          
+          ### 方法1：标准安装（推荐）
           1. 双击打开 DMG 文件
           2. 将 MacVimSwitch 拖入 Applications 文件夹
-          3. 从 Applications 文件夹打开 MacVimSwitch
-
-          使用说明：
-          1. 在系统偏好设置中授予必要权限（如果你从 v0.6.3 之前老版本升级到新版本，你需要先删除原来的应用权限，再重新授权）
+          3. **右键点击** MacVimSwitch.app → 选择 "打开"
+          4. 点击 "打开" 确认信任该应用
+          
+          ### 方法2：命令行解除（高级用户）
+          ```bash
+          # 在终端中运行（请修改为实际路径）
+          sudo xattr -rd com.apple.quarantine /Applications/MacVimSwitch.app
+          ```
+          
+          ### 系统设置步骤：
+          1. 在系统偏好设置中授予必要权限
+          2. 如果从 v0.6.3 之前旧版本升级，需要先删除原来的应用权限，再重新授权
 
           SHA256: ${{ env.DMG_SHA256 }}
 
