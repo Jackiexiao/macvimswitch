@@ -181,27 +181,42 @@ class InputSourceManager {
     }
 
     // 强制刷新输入上下文，确保输入法切换立即生效
-    // 这个方法模拟用户切换应用的效果，强制macOS刷新当前应用的输入上下文
     static func forceRefreshInputContext() {
-        // 方法1: 发送一个空的键盘事件来触发输入上下文刷新
-        // 使用 flags changed 事件，这是最轻量级的事件
-        if let event = CGEvent(keyboardEventSource: nil, virtualKey: 0x3B, keyDown: true) {
-            // 0x3B 是 Control 键，我们只发送修饰键变化，不会影响用户输入
-            event.flags = CGEventFlags(rawValue: 0x40101) // Control键的标志
-            event.post(tap: .cghidEventTap)
-            usleep(1000) // 1ms延迟
+        // 策略1: 通过多次重新选择当前输入法来强制系统刷新
+        // 这个方法比应用切换更轻量，但同样有效
+        let current = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
 
-            // 立即发送释放事件
-            if let releaseEvent = CGEvent(keyboardEventSource: nil, virtualKey: 0x3B, keyDown: false) {
-                releaseEvent.flags = CGEventFlags(rawValue: 0x100)
-                releaseEvent.post(tap: .cghidEventTap)
+        // 第一次：立即重选
+        TISSelectInputSource(current)
+        usleep(3000) // 3ms
+
+        // 第二次：再次重选以确保生效
+        TISSelectInputSource(current)
+        usleep(3000) // 3ms
+
+        // 策略2: 发送一个特殊的"空操作"键盘事件序列
+        // 使用 NSEventType.appKitDefined 或类似的无副作用事件
+        // 通过快速的修饰键按下-释放来触发输入上下文更新
+        sendRefreshKeySequence()
+    }
+
+    // 发送一个特殊的按键序列来刷新输入上下文
+    // 使用极短的修饰键脉冲，几乎不会被用户察觉
+    private static func sendRefreshKeySequence() {
+        let source = CGEventSource(stateID: .hidSystemState)
+
+        // 使用 Function 键 (0x3F) - 这是最不会干扰用户输入的修饰键
+        // 因为单独按 Fn 键通常不会触发任何操作
+        if let fnDown = CGEvent(keyboardEventSource: source, virtualKey: 0x3F, keyDown: true) {
+            fnDown.post(tap: .cghidEventTap)
+            usleep(500) // 0.5ms - 极短的延迟
+
+            if let fnUp = CGEvent(keyboardEventSource: source, virtualKey: 0x3F, keyDown: false) {
+                fnUp.post(tap: .cghidEventTap)
             }
         }
 
-        // 方法2: 更激进的方式 - 重新选择当前输入法来强制刷新
-        let current = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
-        TISSelectInputSource(current)
-        usleep(5000) // 5ms延迟确保刷新完成
+        usleep(2000) // 2ms - 让系统处理事件
     }
 }
 
