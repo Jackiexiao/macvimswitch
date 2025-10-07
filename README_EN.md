@@ -18,10 +18,26 @@ MacVimSwitch is a utility for macOS that automatically switches input sources, d
 
 <img width="383" alt="Image" src="https://github.com/user-attachments/assets/0eb4b7a0-c229-4334-b1ff-cd78dd477196" />
 
-## Known issue
+## Known Issues
+
+### 1. Insert Mode Input Method Switching
 When switching back to insert mode from normal mode, it cannot automatically switch back to the previous input method - it defaults to English. See [issue](https://github.com/Jackiexiao/macvimswitch/issues/6)
 
 My personal solution is to press shift to switch back to Chinese. After getting used to it, it works fine, especially since it's quite common to stay in English input method when entering insert mode for coding.
+
+### 2. Accessibility Permission Required After Updates
+**Issue:** After downloading a new version of MacVimSwitch, you need to re-grant accessibility permissions
+
+**Reason:** The app uses self-signing (rather than an Apple Developer certificate), so each build has a different signature identity. macOS treats it as a different application, requiring re-authorization
+
+**Solution Steps:**
+1. Open System Settings → Privacy & Security → Accessibility
+2. Remove the old MacVimSwitch entry (click the `-` button)
+3. Add the new MacVimSwitch (click the `+` button and select the new version)
+4. Ensure the toggle is enabled
+5. Restart the MacVimSwitch app
+
+**Future Plan:** If someone kind would sponsor an Apple Developer account ($99/year), I'll sign with an official certificate so updates won't require re-authorization 😄
 
 ## Installation
 
