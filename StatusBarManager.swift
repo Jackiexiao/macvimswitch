@@ -126,7 +126,7 @@ class StatusBarManager {
 
         // 修改 Shift 切换选项的文字
         let shiftSwitchItem = NSMenuItem(
-            title: "使用 Shift 切换入法",
+            title: "使用 Shift 切换输入法",
             action: #selector(toggleShiftSwitch),
             keyEquivalent: ""
         )

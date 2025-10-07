@@ -38,22 +38,66 @@ class InputSource: Equatable {
         if self.isCJKV {
             switchCJKVSource()
         } else {
-            TISSelectInputSource(tisInputSource)
-            usleep(InputSourceManager.uSeconds)
+            selectWithRetry()
         }
     }
 
+    // 添加重试机制的切换方法
+    private func selectWithRetry(maxAttempts: Int = 2) {
+        for attempt in 1...maxAttempts {
+            TISSelectInputSource(tisInputSource)
+            usleep(InputSourceManager.uSeconds)
+
+            // 验证切换是否成功
+            if InputSourceManager.getCurrentSource().id == self.id {
+                // 强制刷新输入上下文以确保立即生效
+                InputSourceManager.forceRefreshInputContext()
+                return
+            }
+
+            // 如果不是最后一次尝试，多等待一段时间再重试
+            if attempt < maxAttempts {
+                usleep(InputSourceManager.uSeconds)
+            }
+        }
+
+        // 即使失败也尝试刷新一次
+        InputSourceManager.forceRefreshInputContext()
+    }
+
     private func switchCJKVSource() {
-        // 直接切换到目标输入法
+        // 尝试直接切换到目标输入法
         TISSelectInputSource(tisInputSource)
         usleep(InputSourceManager.uSeconds)
 
+        // 验证切换是否成功
+        if InputSourceManager.getCurrentSource().id == self.id {
+            // 即使切换成功，也强制刷新输入上下文以确保立即生效
+            InputSourceManager.forceRefreshInputContext()
+            return
+        }
+
         // 如果切换失败，尝试通过非 CJKV 输入法中转
-        if InputSourceManager.getCurrentSource().id != self.id,
-           let nonCJKV = InputSourceManager.nonCJKVSource() {
+        if let nonCJKV = InputSourceManager.nonCJKVSource() {
             TISSelectInputSource(nonCJKV.tisInputSource)
             usleep(InputSourceManager.uSeconds)
             TISSelectInputSource(tisInputSource)
+            usleep(InputSourceManager.uSeconds)
+
+            // 再次验证
+            if InputSourceManager.getCurrentSource().id == self.id {
+                // 强制刷新输入上下文
+                InputSourceManager.forceRefreshInputContext()
+                return
+            }
+
+            // 最后一次尝试：等待更长时间再切换
+            usleep(InputSourceManager.uSeconds * 2)
+            TISSelectInputSource(tisInputSource)
+            usleep(InputSourceManager.uSeconds)
+
+            // 最后也强制刷新一次
+            InputSourceManager.forceRefreshInputContext()
         }
     }
 }
@@ -61,7 +105,7 @@ class InputSource: Equatable {
 // 修改 InputSourceManager 类
 class InputSourceManager {
     static var inputSources: [InputSource] = []
-    static var uSeconds: UInt32 = 12000
+    static var uSeconds: UInt32 = 20000  // 增加到20ms以提高稳定性
     static var keyboardOnly: Bool = true
 
     static func initialize() {
@@ -134,6 +178,30 @@ class InputSourceManager {
 
     static func getNonCJKVSource() -> InputSource? {
         return nonCJKVSource()
+    }
+
+    // 强制刷新输入上下文，确保输入法切换立即生效
+    // 这个方法模拟用户切换应用的效果，强制macOS刷新当前应用的输入上下文
+    static func forceRefreshInputContext() {
+        // 方法1: 发送一个空的键盘事件来触发输入上下文刷新
+        // 使用 flags changed 事件，这是最轻量级的事件
+        if let event = CGEvent(keyboardEventSource: nil, virtualKey: 0x3B, keyDown: true) {
+            // 0x3B 是 Control 键，我们只发送修饰键变化，不会影响用户输入
+            event.flags = CGEventFlags(rawValue: 0x40101) // Control键的标志
+            event.post(tap: .cghidEventTap)
+            usleep(1000) // 1ms延迟
+
+            // 立即发送释放事件
+            if let releaseEvent = CGEvent(keyboardEventSource: nil, virtualKey: 0x3B, keyDown: false) {
+                releaseEvent.flags = CGEventFlags(rawValue: 0x100)
+                releaseEvent.post(tap: .cghidEventTap)
+            }
+        }
+
+        // 方法2: 更激进的方式 - 重新选择当前输入法来强制刷新
+        let current = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
+        TISSelectInputSource(current)
+        usleep(5000) // 5ms延迟确保刷新完成
     }
 }
 
@@ -392,10 +460,15 @@ class KeyboardManager {
         // 打印当前修饰键的原始值，用于调试
         // print("修饰键 flags 原始值: 0x\(String(flags.rawValue, radix: 16))（\(flags.rawValue))")
 
-        // 只有 Shift 键的 flags 值（0x20102 = 131330）
-        let isShiftKey = flags.rawValue == 0x20102
-        // Shift 键释放的 flags 值（0x100 = 256）
-        let isShiftRelease = flags.rawValue == 0x100
+        // 检测Shift键状态的改进逻辑：支持左右Shift键
+        // 左Shift: 0x20102, 右Shift: 0x20104
+        let currentHasShift = flags.contains(.maskShift)
+        let previousHasShift = lastFlags.contains(.maskShift)
+
+        // Shift键按下：当前有Shift但之前没有
+        let isShiftKey = currentHasShift && !previousHasShift
+        // Shift键释放：之前有Shift但当前没有
+        let isShiftRelease = !currentHasShift && previousHasShift
 
         // 检查是否有其他修饰键（当前或之前的状态）
         let hasOtherModifiers = flags.contains(.maskCommand) || flags.contains(.maskControl) ||
