@@ -33,6 +33,7 @@ if ! swiftc -o dist/MacVimSwitch.app/Contents/MacOS/macvimswitch-arm64 \
   InputMethodManager.swift \
   UserPreferences.swift \
   LaunchManager.swift \
+  UpdateManager.swift \
   -framework Cocoa \
   -framework Carbon \
   -target arm64-apple-macos11 \
@@ -55,6 +56,7 @@ if ! swiftc -o dist/MacVimSwitch.app/Contents/MacOS/macvimswitch-x86_64 \
   InputMethodManager.swift \
   UserPreferences.swift \
   LaunchManager.swift \
+  UpdateManager.swift \
   -framework Cocoa \
   -framework Carbon \
   -target x86_64-apple-macos11 \

@@ -148,6 +148,13 @@ class StatusBarManager {
 
         newMenu.addItem(NSMenuItem.separator())
 
+        // 添加检查更新选项
+        let checkUpdateItem = NSMenuItem(title: "检查更新", action: #selector(checkForUpdates), keyEquivalent: "")
+        checkUpdateItem.target = self
+        newMenu.addItem(checkUpdateItem)
+
+        newMenu.addItem(NSMenuItem.separator())
+
         // 添加退出选项
         let quitItem = NSMenuItem(title: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quitItem.target = NSApp
@@ -197,6 +204,10 @@ class StatusBarManager {
             alert.addButton(withTitle: "确定")
             alert.runModal()
         }
+    }
+
+    @objc private func checkForUpdates() {
+        UpdateManager.shared.checkForUpdates(silent: false)
     }
 
     @objc private func quitApp() {

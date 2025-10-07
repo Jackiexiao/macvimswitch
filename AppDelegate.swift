@@ -42,6 +42,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, KeyboardManagerDelegate {
         KeyboardManager.shared.start()
         print("键盘管理器启动完成")
 
+        // 启动自动更新检查
+        UpdateManager.shared.startPeriodicCheck()
+        print("已启动自动更新检查")
+
         // 显示初始使用提示
         DispatchQueue.main.async { [weak self] in
             self?.showInitialInstructions()
