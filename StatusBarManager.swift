@@ -134,6 +134,15 @@ class StatusBarManager {
         shiftSwitchItem.state = KeyboardManager.shared.useShiftSwitch ? .on : .off
         newMenu.addItem(shiftSwitchItem)
 
+        let jkSwitchItem = NSMenuItem(
+            title: "使用 jk 切换输入法",
+            action: #selector(toggleJkSwitch),
+            keyEquivalent: ""
+        )
+        jkSwitchItem.target = self
+        jkSwitchItem.state = KeyboardManager.shared.useJkSwitch ? .on : .off
+        newMenu.addItem(jkSwitchItem)
+
         newMenu.addItem(NSMenuItem.separator())
 
         // 添加开机启动选项
@@ -174,6 +183,11 @@ class StatusBarManager {
         KeyboardManager.shared.useShiftSwitch = !KeyboardManager.shared.useShiftSwitch
         UserPreferences.shared.useShiftSwitch = KeyboardManager.shared.useShiftSwitch
         updateStatusBarIcon()
+        createAndShowMenu()
+    }
+
+    @objc private func toggleJkSwitch() {
+        KeyboardManager.shared.useJkSwitch = !KeyboardManager.shared.useJkSwitch
         createAndShowMenu()
     }
 

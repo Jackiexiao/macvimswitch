@@ -267,6 +267,13 @@ class KeyboardManager {
     static let shared = KeyboardManager()
     weak var delegate: KeyboardManagerDelegate?  // 添加代理属性
     private var eventTap: CFMachPort?
+
+    private enum KeyCode {
+        static let esc: Int64 = 0x35
+        static let j: Int64 = 0x26
+        static let k: Int64 = 0x28
+    }
+
     var englishInputSource: String {
         get { UserPreferences.shared.selectedEnglishInputMethod }
         set { UserPreferences.shared.selectedEnglishInputMethod = newValue }
@@ -275,6 +282,13 @@ class KeyboardManager {
         get { UserPreferences.shared.useShiftSwitch }
         set {
             UserPreferences.shared.useShiftSwitch = newValue
+            delegate?.keyboardManagerDidUpdateState()
+        }
+    }
+    var useJkSwitch: Bool {
+        get { UserPreferences.shared.useJkSwitch }
+        set {
+            UserPreferences.shared.useJkSwitch = newValue
             delegate?.keyboardManagerDidUpdateState()
         }
     }
@@ -305,10 +319,14 @@ class KeyboardManager {
 
     private var shiftPressStartTime: TimeInterval = 0  // 记录 Shift 下的开始时间
     private var hasOtherKeysDuringShift = false       // 记录 Shift 按下期间是否有其他键按下
+    private var waitingForKAfterJ = false             // 记录是否等待 k 以组成 jk 序列
+    private var lastJKeyTime: TimeInterval = 0        // 记录最近一次 j 键的时间
+    private static let JK_SEQUENCE_WINDOW: TimeInterval = 0.35
 
     private init() {
         // 从 UserPreferences 加载配置
         useShiftSwitch = UserPreferences.shared.useShiftSwitch
+        useJkSwitch = UserPreferences.shared.useJkSwitch
         lastInputSource = UserPreferences.shared.selectedInputMethod
     }
 
@@ -399,7 +417,10 @@ class KeyboardManager {
         case .keyDown:
             manager.handleKeyDown(true)
 
-            if event.getIntegerValueField(.keyboardEventKeycode) == 0x35 { // ESC key
+            let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+            manager.handleJkSequence(keyCode: keyCode, flags: event.flags)
+
+            if keyCode == KeyboardManager.KeyCode.esc { // ESC key
                 print("ESC key pressed")
                 // 检查是否应该切换输入法
                 if let delegate = manager.delegate,
@@ -534,6 +555,54 @@ class KeyboardManager {
         }
         isShiftPressed = false
         hasOtherKeysDuringShift = false
+    }
+
+    private func handleJkSequence(keyCode: Int64, flags: CGEventFlags) {
+        guard useJkSwitch else {
+            waitingForKAfterJ = false
+            return
+        }
+
+        let currentTime = Date().timeIntervalSince1970
+
+        if waitingForKAfterJ && currentTime - lastJKeyTime > KeyboardManager.JK_SEQUENCE_WINDOW {
+            waitingForKAfterJ = false
+        }
+
+        // 当有修饰键（除 CapsLock 外）按下时，认为不是 jk 序列
+        let disallowedModifiers: CGEventFlags = [
+            .maskCommand,
+            .maskControl,
+            .maskAlternate,
+            .maskSecondaryFn,
+            .maskShift
+        ]
+        if !flags.intersection(disallowedModifiers).isEmpty {
+            if keyCode != KeyboardManager.KeyCode.j {
+                waitingForKAfterJ = false
+            }
+            return
+        }
+
+        if keyCode == KeyboardManager.KeyCode.j {
+            waitingForKAfterJ = true
+            lastJKeyTime = currentTime
+            return
+        }
+
+        if keyCode == KeyboardManager.KeyCode.k {
+            if waitingForKAfterJ && currentTime - lastJKeyTime <= KeyboardManager.JK_SEQUENCE_WINDOW {
+                waitingForKAfterJ = false
+                if let delegate = delegate, delegate.shouldSwitchInputSource() {
+                    switchToEnglish()
+                }
+            } else {
+                waitingForKAfterJ = false
+            }
+            return
+        }
+
+        waitingForKAfterJ = false
     }
 
     private func cleanupKeySequence(_ currentTime: TimeInterval) {
